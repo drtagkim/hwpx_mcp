@@ -48,3 +48,7 @@ pip install -r requirements.txt
 - [Parsing HWP - Hancom Tech](https://tech.hancom.com/python-hwp-parsing-1/)
 - [Parsing HWPX Part 1 - Hancom Tech](https://tech.hancom.com/python-hwpx-parsing-1/)
 - [Parsing HWPX Part 2 - Hancom Tech](https://tech.hancom.com/python-hwpx-parsing-2/)
+
+## 개발진 목록 (Contributors)
+- **김태경 교수 (Tae-kyung Kim, Ph.kr)**: 경희대학교 경영대학 빅데이터응용학과 소속 교수 (Department of Big Data Analytics, School of Management, Kyung Hee University) 
+- **윤이나 (Yoon Ina)**: 김태경 교수님의 수석 연구조교(RA)이자 메인 실무 파트너
