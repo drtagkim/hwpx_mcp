@@ -8,6 +8,26 @@ from mcp.server.fastmcp import FastMCP
 # Initialize FastMCP Server
 mcp = FastMCP("hwpx-parser")
 
+# Standard HWPX Namespaces
+HWPX_NAMESPACES = {
+    "ha": "http://www.hancom.co.kr/hwpml/2011/app",
+    "hp": "http://www.hancom.co.kr/hwpml/2011/paragraph",
+    "hp10": "http://www.hancom.co.kr/hwpml/2016/paragraph",
+    "hs": "http://www.hancom.co.kr/hwpml/2011/section",
+    "hc": "http://www.hancom.co.kr/hwpml/2011/core",
+    "hh": "http://www.hancom.co.kr/hwpml/2011/head",
+    "hhs": "http://www.hancom.co.kr/hwpml/2011/history",
+    "hm": "http://www.hancom.co.kr/hwpml/2011/master-page",
+    "hpf": "http://www.hancom.co.kr/hwpml/2011/chart",
+    "dc": "http://purl.org/dc/elements/1.1/",
+    "ds": "http://www.w3.org/2000/09/xmldsig#",
+    "ep": "http://www.hancom.co.kr/hwpml/2011/epub",
+    "ocf": "urn:oasis:names:tc:opendocument:xmlns:container"
+}
+
+for prefix, uri in HWPX_NAMESPACES.items():
+    ET.register_namespace(prefix, uri)
+
 class HWPXModifier:
     """Context manager for safely unpacking, modifying, and repacking HWPX files."""
     def __init__(self, source_path: str, target_path: str):
@@ -149,10 +169,7 @@ def update_hwpx_table_content(file_path: str, target_path: str, table_index: int
                 root = tree.getroot()
                 
                 # Register namespaces to prevent ns0, ns1 junk when writing
-                # Typical HWPX namespaces: hp, hc, hh
-                ET.register_namespace("hp", "http://www.hancom.co.kr/hwpml/2011/paragraph")
-                ET.register_namespace("hc", "http://www.hancom.co.kr/hwpml/2011/core")
-                
+                # Typical HWPX namespaces are registered globally at the top
                 for tbl in root.iter():
                     if tbl.tag.endswith('}tbl'):
                         if global_tbl_count == table_index:
@@ -175,7 +192,9 @@ def update_hwpx_table_content(file_path: str, target_path: str, table_index: int
                         global_tbl_count += 1
                 
                 if updated:
-                    tree.write(section_path, encoding='UTF-8', xml_declaration=True)
+                    with open(section_path, 'wb') as f:
+                        f.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
+                        tree.write(f, encoding='UTF-8', xml_declaration=False)
                     return f"Successfully updated table {table_index}, cell({row_index},{col_index}) in {target_path}"
                     
         return f"Could not find table {table_index} or cell({row_index},{col_index})"
@@ -199,8 +218,6 @@ def modify_hwpx_table_row(file_path: str, target_path: str, table_index: int, ro
                 tree = ET.parse(section_path)
                 root = tree.getroot()
                 
-                ET.register_namespace("hp", "http://www.hancom.co.kr/hwpml/2011/paragraph")
-                
                 for tbl in root.iter():
                     if tbl.tag.endswith('}tbl'):
                         if global_tbl_count == table_index:
@@ -219,6 +236,12 @@ def modify_hwpx_table_row(file_path: str, target_path: str, table_index: int, ro
                                         if cell.tag.endswith('}tc'):
                                             _clear_cell_text(cell)
                                     
+                                    # Reset paragraph IDs to avoid duplicate ID corruption in HWPX
+                                    for p in new_row.iter():
+                                        if p.tag.endswith('}p'):
+                                            if 'id' in p.attrib and p.attrib['id'] != '0':
+                                                p.attrib['id'] = '0'
+                                                
                                     # Insert at requested index
                                     insert_pos = min(row_index, len(tbl))
                                     tbl.insert(insert_pos, new_row)
@@ -226,7 +249,9 @@ def modify_hwpx_table_row(file_path: str, target_path: str, table_index: int, ro
                         global_tbl_count += 1
                 
                 if updated:
-                    tree.write(section_path, encoding='UTF-8', xml_declaration=True)
+                    with open(section_path, 'wb') as f:
+                        f.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
+                        tree.write(f, encoding='UTF-8', xml_declaration=False)
                     return f"Successfully performed '{action}' on table {table_index}, row {row_index} in {target_path}"
                     
         return f"Could not perform action '{action}' on table {table_index}."
@@ -245,7 +270,6 @@ def delete_hwpx_table(file_path: str, target_path: str, table_index: int) -> str
             for section_path in hwpx.get_section_xml_paths():
                 tree = ET.parse(section_path)
                 root = tree.getroot()
-                ET.register_namespace("hp", "http://www.hancom.co.kr/hwpml/2011/paragraph")
                 
                 # Tables are usually inside paragraphs (<hp:p> -> <hp:run> -> <hp:tbl>)
                 # We need to find the parent to remove the table
@@ -262,7 +286,9 @@ def delete_hwpx_table(file_path: str, target_path: str, table_index: int) -> str
                         global_tbl_count += 1
                 
                 if updated:
-                    tree.write(section_path, encoding='UTF-8', xml_declaration=True)
+                    with open(section_path, 'wb') as f:
+                        f.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
+                        tree.write(f, encoding='UTF-8', xml_declaration=False)
                     return f"Successfully deleted table {table_index} and saved to {target_path}"
                     
         return f"Could not find table {table_index} to delete."
@@ -300,7 +326,6 @@ def copy_hwpx_table(file_path: str, target_path: str, source_table_index: int, t
             for section_path in hwpx.get_section_xml_paths():
                 tree = ET.parse(section_path)
                 root = tree.getroot()
-                ET.register_namespace("hp", "http://www.hancom.co.kr/hwpml/2011/paragraph")
                 
                 parent_map = {c: p for p in root.iter() for c in p}
                 
@@ -317,7 +342,9 @@ def copy_hwpx_table(file_path: str, target_path: str, source_table_index: int, t
                         global_p_count += 1
                 
                 if updated:
-                    tree.write(section_path, encoding='UTF-8', xml_declaration=True)
+                    with open(section_path, 'wb') as f:
+                        f.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
+                        tree.write(f, encoding='UTF-8', xml_declaration=False)
                     return f"Successfully copied table {source_table_index} to paragraph {target_paragraph_index}."
 
         return f"Could not find paragraph {target_paragraph_index}."
