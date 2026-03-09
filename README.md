@@ -1,10 +1,15 @@
 # hwpx_mcp
 
-FastMCP server for parsing Korean HWPX (Hangul Word Processor) files.
+FastMCP server for parsing and creatively manipulating Korean HWPX (Hangul Word Processor) files. 
 
 ## Features
-- Reads `.hwpx` (ZIP) format and extracts XML text contents (`<hp:t>`).
-- Supports listing `.hwpx` files in directories.
+- **Read & List**: Reads `.hwpx` (ZIP) format and extracts XML text contents (`<hp:t>`). Lists all HWPX files in a directory.
+- **Advanced Table Manipulation**:
+  - `update_hwpx_table_content`: Finds a specific table by index and replaces cell text safely.
+  - `modify_hwpx_table_row`: Duplicates the last row to create properly-styled empty rows (`add`) or removes them (`delete`).
+  - `delete_hwpx_table` & `copy_hwpx_table`: Remove or clone entire structural table blocks.
+- **Image Overwriting**:
+  - `replace_hwpx_image`: Replaces standard BinData images dynamically without breaking target HWPX layouts!
 
 ## Installation & Usage
 
@@ -29,4 +34,5 @@ pip install -r requirements.txt
 ```
 
 ## Version
-Initial release: v0.0.1
+**Current release: v0.1.0**
+- Initial release: v0.0.1
