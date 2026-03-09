@@ -36,3 +36,15 @@ pip install -r requirements.txt
 ## Version
 **Current release: v0.1.0**
 - Initial release: v0.0.1
+
+### Version 0.1.1 (Hotfix) - Advanced Formatting & Corruption Fixes
+- Added features for structurally mutating tables: `modify_hwpx_table_row`, `delete_hwpx_table`, `copy_hwpx_table`
+- Discovered and fixed a critical ZIP repacking issue causing HWPX file corruption because of Hancom's strict OCF structure requirement. Uncompressed `mimetype` files are now guaranteed to be the first file in the ZIP archive.
+- Corrected internal XML indexing (such as `hp:tbl` `rowCnt` and `hp:cellAddr` `rowAddr`) handling when adding or removing table rows. Previously, added rows duplicated unique identifiers which corrupted the grid data model.
+- Prevented automatic XML declaration changes by standardizing how Python's ElementTree reserializes modified node structures, preserving the original schema metadata precisely.
+
+### Resources & Technical Documentation
+- [HWPX Format Overview - Hancom Tech](https://tech.hancom.com/hwpxformat/)
+- [Parsing HWP - Hancom Tech](https://tech.hancom.com/python-hwp-parsing-1/)
+- [Parsing HWPX Part 1 - Hancom Tech](https://tech.hancom.com/python-hwpx-parsing-1/)
+- [Parsing HWPX Part 2 - Hancom Tech](https://tech.hancom.com/python-hwpx-parsing-2/)

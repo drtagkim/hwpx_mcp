@@ -165,6 +165,13 @@ def update_hwpx_table_content(file_path: str, target_path: str, table_index: int
             updated = False
             
             for section_path in hwpx.get_section_xml_paths():
+                with open(section_path, 'r', encoding='utf-8') as f:
+                    raw_xml = f.read()
+                
+                import re
+                match = re.search(r'^(<\?xml.*?\?>\s*<[a-zA-Z0-9_]+:sec[^>]*>)', raw_xml)
+                original_header = match.group(1) if match else None
+
                 tree = ET.parse(section_path)
                 root = tree.getroot()
                 
@@ -192,9 +199,14 @@ def update_hwpx_table_content(file_path: str, target_path: str, table_index: int
                         global_tbl_count += 1
                 
                 if updated:
-                    with open(section_path, 'wb') as f:
-                        f.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
-                        tree.write(f, encoding='UTF-8', xml_declaration=False)
+                    out_xml = ET.tostring(root, encoding='unicode', xml_declaration=False)
+                    if original_header:
+                        out_xml = re.sub(r'^<[a-zA-Z0-9_]+:sec[^>]*>', lambda m: original_header, out_xml, count=1)
+                    else:
+                        out_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n' + out_xml
+                    
+                    with open(section_path, 'w', encoding='utf-8') as f:
+                        f.write(out_xml)
                     return f"Successfully updated table {table_index}, cell({row_index},{col_index}) in {target_path}"
                     
         return f"Could not find table {table_index} or cell({row_index},{col_index})"
@@ -215,6 +227,12 @@ def modify_hwpx_table_row(file_path: str, target_path: str, table_index: int, ro
             updated = False
             
             for section_path in hwpx.get_section_xml_paths():
+                with open(section_path, 'r', encoding='utf-8') as f:
+                    raw_xml = f.read()
+                import re
+                match = re.search(r'^(<\?xml.*?\?>\s*<[a-zA-Z0-9_]+:sec[^>]*>)', raw_xml)
+                original_header = match.group(1) if match else None
+
                 tree = ET.parse(section_path)
                 root = tree.getroot()
                 
@@ -243,15 +261,37 @@ def modify_hwpx_table_row(file_path: str, target_path: str, table_index: int, ro
                                                 p.attrib['id'] = '0'
                                                 
                                     # Insert at requested index
-                                    insert_pos = min(row_index, len(tbl))
+                                    if row_index < len(rows):
+                                        insert_pos = list(tbl).index(rows[row_index])
+                                    else:
+                                        insert_pos = list(tbl).index(rows[-1]) + 1
                                     tbl.insert(insert_pos, new_row)
                                     updated = True
+
+                            if updated:
+                                # Re-index rowAddr for ALL cells in the table to fix corruption
+                                current_rows = [tr for tr in tbl if tr.tag.endswith('}tr')]
+                                for r_idx, tr in enumerate(current_rows):
+                                    for tc in tr:
+                                        if tc.tag.endswith('}tc'):
+                                            for cell_addr in tc:
+                                                if cell_addr.tag.endswith('}cellAddr'):
+                                                    if 'rowAddr' in cell_addr.attrib:
+                                                        cell_addr.attrib['rowAddr'] = str(r_idx)
+                                
+                                # Update the table's overall row count attribute
+                                if 'rowCnt' in tbl.attrib:
+                                    tbl.attrib['rowCnt'] = str(len(current_rows))
                         global_tbl_count += 1
                 
                 if updated:
-                    with open(section_path, 'wb') as f:
-                        f.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
-                        tree.write(f, encoding='UTF-8', xml_declaration=False)
+                    out_xml = ET.tostring(root, encoding='unicode', xml_declaration=False)
+                    if original_header:
+                        out_xml = re.sub(r'^<[a-zA-Z0-9_]+:sec[^>]*>', lambda m: original_header, out_xml, count=1)
+                    else:
+                        out_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n' + out_xml
+                    with open(section_path, 'w', encoding='utf-8') as f:
+                        f.write(out_xml)
                     return f"Successfully performed '{action}' on table {table_index}, row {row_index} in {target_path}"
                     
         return f"Could not perform action '{action}' on table {table_index}."
@@ -268,6 +308,12 @@ def delete_hwpx_table(file_path: str, target_path: str, table_index: int) -> str
             updated = False
             
             for section_path in hwpx.get_section_xml_paths():
+                with open(section_path, 'r', encoding='utf-8') as f:
+                    raw_xml = f.read()
+                import re
+                match = re.search(r'^(<\?xml.*?\?>\s*<[a-zA-Z0-9_]+:sec[^>]*>)', raw_xml)
+                original_header = match.group(1) if match else None
+
                 tree = ET.parse(section_path)
                 root = tree.getroot()
                 
@@ -286,9 +332,13 @@ def delete_hwpx_table(file_path: str, target_path: str, table_index: int) -> str
                         global_tbl_count += 1
                 
                 if updated:
-                    with open(section_path, 'wb') as f:
-                        f.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
-                        tree.write(f, encoding='UTF-8', xml_declaration=False)
+                    out_xml = ET.tostring(root, encoding='unicode', xml_declaration=False)
+                    if original_header:
+                        out_xml = re.sub(r'^<[a-zA-Z0-9_]+:sec[^>]*>', lambda m: original_header, out_xml, count=1)
+                    else:
+                        out_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n' + out_xml
+                    with open(section_path, 'w', encoding='utf-8') as f:
+                        f.write(out_xml)
                     return f"Successfully deleted table {table_index} and saved to {target_path}"
                     
         return f"Could not find table {table_index} to delete."
@@ -324,6 +374,12 @@ def copy_hwpx_table(file_path: str, target_path: str, source_table_index: int, t
 
             # Second pass: Find paragraph and insert
             for section_path in hwpx.get_section_xml_paths():
+                with open(section_path, 'r', encoding='utf-8') as f:
+                    raw_xml = f.read()
+                import re
+                match = re.search(r'^(<\?xml.*?\?>\s*<[a-zA-Z0-9_]+:sec[^>]*>)', raw_xml)
+                original_header = match.group(1) if match else None
+
                 tree = ET.parse(section_path)
                 root = tree.getroot()
                 
@@ -342,9 +398,13 @@ def copy_hwpx_table(file_path: str, target_path: str, source_table_index: int, t
                         global_p_count += 1
                 
                 if updated:
-                    with open(section_path, 'wb') as f:
-                        f.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
-                        tree.write(f, encoding='UTF-8', xml_declaration=False)
+                    out_xml = ET.tostring(root, encoding='unicode', xml_declaration=False)
+                    if original_header:
+                        out_xml = re.sub(r'^<[a-zA-Z0-9_]+:sec[^>]*>', lambda m: original_header, out_xml, count=1)
+                    else:
+                        out_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n' + out_xml
+                    with open(section_path, 'w', encoding='utf-8') as f:
+                        f.write(out_xml)
                     return f"Successfully copied table {source_table_index} to paragraph {target_paragraph_index}."
 
         return f"Could not find paragraph {target_paragraph_index}."
